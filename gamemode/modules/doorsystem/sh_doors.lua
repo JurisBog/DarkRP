@@ -43,6 +43,23 @@ function meta:isMasterOwner(ply)
     return ply == self:getDoorOwner()
 end
 
+function meta:TeamMasterOwner(ply)
+    local group = self:getKeysDoorGroup()
+    local teamOwn = self:getKeysDoorTeams()
+    local Team = ply:Team()
+
+    return self:getTeamAllowCoown() and
+    ((group   and table.HasValue(RPExtraTeamDoors[group] or {}, Team)) or
+    (teamOwn and teamOwn[Team]))
+end
+
+function meta:getRent()
+    local doorData = self:getDoorData()
+    if not doorData then return nil end
+
+    return doorData.rent or 0
+end
+
 function meta:isKeysOwnedBy(ply)
     if self:isMasterOwner(ply) then return true end
 
@@ -62,6 +79,14 @@ function meta:getKeysNonOwnable()
     if not doorData then return nil end
 
     return doorData.nonOwnable
+end
+
+function meta:getTeamAllowCoown()
+    local doorData = self:getDoorData()
+    if not doorData then return nil end
+
+    return doorData.teamAllowCoown
+
 end
 
 function meta:getKeysTitle()
@@ -205,6 +230,8 @@ end
 
 DarkRP.registerDoorVar("owner", fp{fn.Flip(net.WriteInt), 16}, fp{net.ReadUInt, 16})
 DarkRP.registerDoorVar("nonOwnable", net.WriteBool, net.ReadBool)
+DarkRP.registerDoorVar("teamAllowCoown", net.WriteBool, net.ReadBool)
+DarkRP.registerDoorVar("rent", fp{fn.Flip(net.WriteInt), 16}, fp{net.ReadInt, 16})
 DarkRP.registerDoorVar("teamOwn", writeNumBoolTbl, readNumBoolTbl)
 DarkRP.registerDoorVar("allowedToOwn", writeNumBoolTbl, readNumBoolTbl)
 DarkRP.registerDoorVar("extraOwners", writeNumBoolTbl, readNumBoolTbl)
@@ -216,6 +243,12 @@ Commands
 DarkRP.declareChatCommand{
     command = "toggleownable",
     description = "Toggle ownability status on this door.",
+    delay = 1.5
+}
+
+DarkRP.declareChatCommand{
+    command = "togglecoownable",
+    description = "Toggle whether a team can add co-owners on this door.",
     delay = 1.5
 }
 

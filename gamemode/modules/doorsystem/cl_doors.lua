@@ -23,6 +23,12 @@ function meta:drawOwnableInfo()
     local title = self:getKeysTitle()
     if title then table.insert(doorInfo, title) end
 
+    local rent = self:getRent()
+    if rent and (doorTeams or doorGroup) and self:getTeamAllowCoown() then
+        table.insert(doorInfo, "Rent: " .. DarkRP.formatMoney(rent))
+        table.insert(doorInfo, "")
+    end
+
     if owned then
         table.insert(doorInfo, DarkRP.getPhrase("keys_owned_by"))
     end

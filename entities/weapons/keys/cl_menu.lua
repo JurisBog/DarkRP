@@ -86,7 +86,9 @@ local function openMenu(setDoorOwnerAccess, doorSettingsAccess)
         local Owndoor = AddButtonToFrame(Frame)
         Owndoor:SetText(DarkRP.getPhrase("sell_x", entType))
         Owndoor.DoClick = function() RunConsoleCommand("darkrp", "toggleown") Frame:Close() end
+    end
 
+    if ent:isKeysOwnedBy(LocalPlayer()) or ent:TeamMasterOwner(LocalPlayer()) then
         local AddOwner = AddButtonToFrame(Frame)
         AddOwner:SetText(DarkRP.getPhrase("add_owner"))
         AddOwner.DoClick = function()
@@ -121,8 +123,28 @@ local function openMenu(setDoorOwnerAccess, doorSettingsAccess)
             end
             menu:Open()
         end
-        if not ent:isMasterOwner(LocalPlayer()) then
+        if not (ent:isMasterOwner(LocalPlayer()) or ent:TeamMasterOwner(LocalPlayer())) then
             RemoveOwner:SetDisabled(true)
+        end
+    end
+
+    if ent:TeamMasterOwner(LocalPlayer()) then
+        local SetRent = AddButtonToFrame(Frame)
+        SetRent:SetText("Set Rent Cost")
+
+        SetRent.DoClick = function()
+            local req = Derma_StringRequest("Rent", "Set rent for the door", "", function(text)
+                RunConsoleCommand("darkrp", "setrent", text)
+                if IsValid(Frame) then
+                    Frame:Close()
+                end
+            end,
+            function() end, DarkRP.getPhrase("ok"), DarkRP.getPhrase("cancel"))
+            req:SetSkin(GAMEMODE.Config.DarkRPSkin)
+        end
+
+        if (next(ent:getKeysCoOwners() or {}) ~= nil) then
+            SetRent:SetDisabled(true)
         end
     end
 
@@ -136,13 +158,14 @@ local function openMenu(setDoorOwnerAccess, doorSettingsAccess)
         local DoorTitle = AddButtonToFrame(Frame)
         DoorTitle:SetText(DarkRP.getPhrase("set_x_title", entType))
         DoorTitle.DoClick = function()
-            Derma_StringRequest(DarkRP.getPhrase("set_x_title", entType), DarkRP.getPhrase("set_x_title_long", entType), "", function(text)
+            local req = Derma_StringRequest(DarkRP.getPhrase("set_x_title", entType), DarkRP.getPhrase("set_x_title_long", entType), "", function(text)
                 RunConsoleCommand("darkrp", "title", text)
                 if IsValid(Frame) then
                     Frame:Close()
                 end
             end,
             function() end, DarkRP.getPhrase("ok"), DarkRP.getPhrase("cancel"))
+            req:SetSkin(GAMEMODE.Config.DarkRPSkin)
         end
     end
 
@@ -185,6 +208,12 @@ local function openMenu(setDoorOwnerAccess, doorSettingsAccess)
 
             menu:Open()
         end
+    end
+
+    if doorSettingsAccess and (ent:getKeysDoorGroup() or ent:getKeysDoorTeams()) then
+        local AddHotelOwner = AddButtonToFrame(Frame)
+        AddHotelOwner:SetText((ent:getTeamAllowCoown() and "Disable" or "Enable") .. " Hotel Behavior") 
+        AddHotelOwner.DoClick = function() Frame:Close() RunConsoleCommand("darkrp", "togglecoownable") Frame:Close() end
     end
 
     if Frame.buttonCount == 1 then

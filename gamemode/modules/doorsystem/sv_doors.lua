@@ -268,6 +268,19 @@ local function SetDoorOwnable(ply)
 end
 DarkRP.definePrivilegedChatCommand("toggleownable", "DarkRP_ChangeDoorSettings", SetDoorOwnable)
 
+local function SetDoorCoOwnable(ply)
+    local trace = ply:GetEyeTrace()
+    local ent = trace.Entity
+
+    if not IsValid(ent) or (not ent:isDoor() and not ent:IsVehicle()) or ply:GetPos():DistToSqr(ent:GetPos()) > 40000 then
+        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("must_be_looking_at", DarkRP.getPhrase("door_or_vehicle")))
+        return
+    end
+
+    ent:setTeamAllowCoown(not ent:getTeamAllowCoown())
+end
+DarkRP.definePrivilegedChatCommand("togglecoownable", "DarkRP_ChangeDoorSettings", SetDoorCoOwnable)
+
 local function SetDoorGroupOwnable(ply, arg)
     local trace = ply:GetEyeTrace()
     local ent = trace.Entity
@@ -346,7 +359,7 @@ local function OwnDoor(ply)
         return ""
     end
 
-    if ent:getKeysNonOwnable() or ent:getKeysDoorGroup() or not fn.Null(ent:getKeysDoorTeams() or {}) then
+    if ent:getKeysNonOwnable() or ((ent:getKeysDoorGroup() or not fn.Null(ent:getKeysDoorTeams() or {})) and not ent:getTeamAllowCoown()) then
         DarkRP.notify(ply, 1, 5, DarkRP.getPhrase("door_unownable"))
         return ""
     end
@@ -527,7 +540,7 @@ local function RemoveDoorOwner(ply, args)
         return ""
     end
 
-    if not ent:isKeysOwnedBy(ply) then
+    if not (ent:isKeysOwnedBy(ply) or ent:TeamMasterOwner(ply)) then
         DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("do_not_own_ent"))
         return ""
     end
@@ -570,7 +583,7 @@ local function AddDoorOwner(ply, args)
         return ""
     end
 
-    if not ent:isKeysOwnedBy(ply) then
+    if not (ent:isKeysOwnedBy(ply) or ent:TeamMasterOwner(ply)) then
         DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("do_not_own_ent"))
         return ""
     end
@@ -590,3 +603,79 @@ local function AddDoorOwner(ply, args)
 end
 DarkRP.defineChatCommand("addowner", AddDoorOwner)
 DarkRP.defineChatCommand("ao", AddDoorOwner)
+
+local function SetRent(ply, amount)
+    local trace = ply:GetEyeTrace()
+    local ent = trace.Entity
+
+    if not IsValid(ent) or (not ent:isDoor() and not ent:IsVehicle()) or ply:GetPos():DistToSqr(ent:GetPos()) > 40000 then
+        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("must_be_looking_at", DarkRP.getPhrase("door_or_vehicle")))
+        return
+    end
+
+    amount = tonumber(amount)
+    if not amount or amount < 1 then DarkRP.notify(ply, 1, 10, "Invalid amount") return "" end
+    if not ent:TeamMasterOwner(ply) then
+        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("do_not_own_ent"))
+        return ""
+    end
+
+    ent:setRent(amount)
+
+    return ""
+end
+DarkRP.defineChatCommand("setrent", SetRent)
+
+timer.Create("ChargeAllRents", 10, 0, function()
+    for k, door in pairs(ents.GetAll()) do
+        if door:isDoor() and door:getTeamAllowCoown() and door:getRent() > 0 then
+            local renterIDs = door:getKeysCoOwners()
+            local renters = {}
+            for plyId, status in pairs(renterIDs) do
+                if status then
+                    table.insert(renters, Player(plyId))
+                end
+            end
+            if not renters or not next(renters) then continue end
+
+            local doorTeams = door:getKeysDoorTeams()
+            local doorGroup = door:getKeysDoorGroup()
+            local ownerTeams = doorTeams
+            if not ownerTeams then
+                ownerTeams = RPExtraTeamDoors[doorGroup]
+            end
+            if not ownerTeams then continue end
+
+            local owners = {}
+            for k,ply in pairs(player.GetHumans()) do
+                if ownerTeams[ply:Team()] then
+                    table.insert(owners, ply)
+                end
+            end
+
+            if next(owners) == nil then continue end
+
+            local sent = door:getRent()/table.Count(renters)
+            local received = door:getRent()/table.Count(owners)
+
+            for _, ply in pairs(renters) do
+                if not ply:canAfford(sent) then
+                    // Evict if cannot afford
+                    local renterNames = fn.Map(function(v) return v:Nick() end, renters)
+                    DarkRP.notify(owners, 1, 4, table.concat(renterNames, ", ") .. " were evicted from their hotel room because " .. ply:Nick() .. " couldn't pay")
+                    DarkRP.notify(renters, 1, 4, "You were evicted because ".. ply:Nick() .. " couldn't pay")
+                end
+            end
+
+            for _, ply in pairs(renters) do
+                ply:addMoney(-sent)
+            end
+            DarkRP.notify(renters, 1, 4, "You paid "..DarkRP.formatMoney(sent).." for rent")
+
+            for _, ply in pairs(owners) do
+                ply:addMoney(received)
+            end
+            DarkRP.notify(owners, 1, 4, "You received "..DarkRP.formatMoney(sent).." from rent")
+        end
+    end
+end)

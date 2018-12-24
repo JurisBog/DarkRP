@@ -29,6 +29,16 @@ function eMeta:setDoorGroup(group)
     DarkRP.updateDoorData(self, "groupOwn")
 end
 
+function eMeta:setTeamAllowCoown(ownable)
+    self:getDoorData().teamAllowCoown = ownable or nil
+    DarkRP.updateDoorData(self, "teamAllowCoown")
+end
+
+function eMeta:setRent(amount)
+    self:getDoorData().rent = amount or nil
+    DarkRP.updateDoorData(self, "rent")
+end
+
 function eMeta:addKeysDoorTeam(t)
     local doorData = self:getDoorData()
     doorData.teamOwn = doorData.teamOwn or {}
